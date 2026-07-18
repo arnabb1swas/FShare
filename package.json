@@ -1,25 +1,33 @@
 {
   "name": "fshare",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "File Sharing Web App",
-  "main": "index.js",
+  "type": "module",
+  "main": "server/index.js",
+  "engines": { "node": ">=24" },
   "scripts": {
-    "start": "node index",
-    "dev": "nodemon index"
+    "dev:server": "node --env-file=.env --watch server/index.js",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "migrate": "knex migrate:latest --knexfile server/db/knexfile.js",
+    "start": "npm run migrate && node --env-file=.env server/index.js",
+    "test": "node --env-file=.env.test --test"
   },
   "author": "Arnab Biswas",
   "license": "ISC",
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^14.3.2",
-    "ejs": "^3.1.7",
-    "express": "^4.17.2",
-    "mongoose": "^6.1.8",
-    "multer": "^1.4.4",
-    "nodemailer": "^6.7.2",
-    "uuid": "^8.3.2"
+    "@aws-sdk/client-s3": "^3.700.0",
+    "@aws-sdk/s3-request-presigner": "^3.700.0",
+    "express": "^5.0.1",
+    "express-rate-limit": "^7.4.1",
+    "knex": "^3.1.0",
+    "multer": "^2.0.0",
+    "nodemailer": "^9.0.3",
+    "pg": "^8.13.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "nodemon": "^2.0.15"
+    "aws-sdk-client-mock": "^4.1.0",
+    "supertest": "^7.0.0"
   }
 }
