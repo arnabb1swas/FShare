@@ -26,7 +26,7 @@ Modernize a 4-year-old file-sharing app so it is fast, uses current packages, an
 - **Neon Postgres** — file **metadata** only (free, no idle-pause).
 - **Backblaze B2** via `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner` — file **bytes** (10 GB free, no credit card, presigned URLs).
 - **multer 2** (memory storage) — parse upload into a buffer, stream to B2.
-- **nodemailer 7** — email share.
+- **nodemailer 7** — email share, over **Brevo SMTP** (300 emails/day free, no credit card, no domain — verify sender email only; any SMTP provider works, Brevo is the chosen free one).
 - **zod** — validate request bodies, expiry, upload constraints.
 - **express-rate-limit** — throttle upload + email endpoints.
 - In-process **`setInterval`** cleanup — delete expired rows and their B2 objects.
@@ -81,18 +81,18 @@ fshare/
 
 Postgres table `files` (via Knex migration):
 
-| Column     | Type                               | Notes                                        |
-| ---------- | ---------------------------------- | -------------------------------------------- |
-| id         | serial pk                          |                                              |
-| slug       | text unique not null               | public short link id (base62, ~10 chars)     |
-| filename   | text not null                      | original name (used on download)             |
-| mime_type  | text not null                      | for download content-type + disposition      |
-| size       | bigint not null                    | bytes                                        |
-| b2_key     | text not null                      | object key in B2                             |
-| sender     | text nullable                      | set once email sent                          |
-| receiver   | text nullable                      | set once email sent                          |
-| created_at | timestamptz not null default now() |                                              |
-| expires_at | timestamptz not null               | user-chosen; drives expiry, cleanup, UI      |
+| Column     | Type                               | Notes                                    |
+| ---------- | ---------------------------------- | ---------------------------------------- |
+| id         | serial pk                          |                                          |
+| slug       | text unique not null               | public short link id (base62, ~10 chars) |
+| filename   | text not null                      | original name (used on download)         |
+| mime_type  | text not null                      | for download content-type + disposition  |
+| size       | bigint not null                    | bytes                                    |
+| b2_key     | text not null                      | object key in B2                         |
+| sender     | text nullable                      | set once email sent                      |
+| receiver   | text nullable                      | set once email sent                      |
+| created_at | timestamptz not null default now() |                                          |
+| expires_at | timestamptz not null               | user-chosen; drives expiry, cleanup, UI  |
 
 Indexes: `slug` (unique), `expires_at` (cleanup scan).
 
@@ -109,13 +109,13 @@ Short, clean slug — not a raw UUID. 10-char base62 from native `crypto.randomB
 
 ## API
 
-| Method | Path                        | Body                           | Response                                                                 |
-| ------ | --------------------------- | ------------------------------ | ------------------------------------------------------------------------ |
-| POST   | `/api/files`                | multipart `upfile` + `expires` | `{ file: "<BASE_URL>/files/:slug", slug, expiresAt }`                    |
-| POST   | `/api/files/send`           | `{ slug, emailTo, emailFrom }` | `{ success: true }`                                                      |
-| GET    | `/api/files/:slug`          | —                              | `{ slug, filename, size, expiresAt, downloadLink }` or 404/410           |
-| GET    | `/api/files/download/:slug` | —                              | 302 → B2 presigned URL (forces download w/ original name), or 404/410    |
-| GET    | `/*` (non-`/api`)           | —                              | serves `client/dist/index.html` (SPA routing)                            |
+| Method | Path                        | Body                           | Response                                                              |
+| ------ | --------------------------- | ------------------------------ | --------------------------------------------------------------------- |
+| POST   | `/api/files`                | multipart `upfile` + `expires` | `{ file: "<BASE_URL>/files/:slug", slug, expiresAt }`                 |
+| POST   | `/api/files/send`           | `{ slug, emailTo, emailFrom }` | `{ success: true }`                                                   |
+| GET    | `/api/files/:slug`          | —                              | `{ slug, filename, size, expiresAt, downloadLink }` or 404/410        |
+| GET    | `/api/files/download/:slug` | —                              | 302 → B2 presigned URL (forces download w/ original name), or 404/410 |
+| GET    | `/*` (non-`/api`)           | —                              | serves `client/dist/index.html` (SPA routing)                         |
 
 Unknown `/api/*` paths return JSON 404 — the SPA fallback matches only non-`/api` routes. Route order: `/api` → static assets → SPA fallback. Expired resources return **410 Gone**; missing return **404**.
 
@@ -191,8 +191,8 @@ B2_BUCKET=
 B2_KEY_ID=
 B2_APP_KEY=
 
-# SMTP
-SMTP_HOST=
+# SMTP (Brevo — smtp-relay.brevo.com:587; any SMTP provider works)
+SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
 MAIL_USER=
 MAIL_PASS=
@@ -211,7 +211,7 @@ Loaded via Node native `--env-file=.env` (no `dotenv`).
 - Single GitHub repo → Render web service.
 - Build: `npm install && npm run build` (builds `client/dist`).
 - Start: `npm start` runs `knex migrate:latest` then boots the server (table exists before serving).
-- Env vars set in Render dashboard; Neon + B2 created once, credentials pasted in.
+- Env vars set in Render dashboard; Neon + B2 + Brevo accounts created once (all free, no card), credentials pasted in.
 - README documents the free-tier setup end to end.
 
 ## Replace / Upgrade / Add / Delete
