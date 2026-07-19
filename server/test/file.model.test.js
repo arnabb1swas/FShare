@@ -1,7 +1,7 @@
 import { test, before, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { resetDb, db } from "./helpers.js";
-import { createFile, getFileBySlug, markSent, getExpired, deleteBySlug } from "../models/file.js";
+import { createFile, getFileBySlug, markSent, unmarkSent, getExpired, deleteBySlug } from "../models/file.js";
 
 const base = { slug: "abc123", filename: "a.txt", mimeType: "text/plain", size: 10, b2Key: "abc123" };
 
@@ -19,6 +19,16 @@ test("markSent sets once, blocks second", async () => {
   assert.equal(first.sender, "a@b.com");
   const second = await markSent("abc123", "x@y.com", "z@w.com");
   assert.equal(second, undefined);
+});
+
+test("unmarkSent releases a claim so it can be re-claimed", async () => {
+  await createFile({ ...base, expiresAt: new Date(Date.now() + 3600_000) });
+  await markSent("abc123", "a@b.com", "c@d.com");
+
+  await unmarkSent("abc123");
+
+  const reclaimed = await markSent("abc123", "x@y.com", "z@w.com");
+  assert.equal(reclaimed.sender, "x@y.com");
 });
 
 test("getExpired returns only past rows", async () => {

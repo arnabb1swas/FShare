@@ -29,6 +29,20 @@ test("upload with no file → 400", async () => {
   assert.equal(r.status, 400);
 });
 
+test("upload rolls back the reserved row when B2 fails → no orphan", async () => {
+  s3mock.reset();
+  s3mock.on(PutObjectCommand).rejects(new Error("b2 down"));
+
+  const up = await request(app)
+    .post("/api/files")
+    .attach("upfile", Buffer.from("x"), "a.txt")
+    .field("expires", "");
+  assert.equal(up.status, 500);
+
+  const rows = await db("files").select("*");
+  assert.equal(rows.length, 0);
+});
+
 test("metadata for unknown slug → 404", async () => {
   const r = await request(app).get("/api/files/zzzzzzzzzz");
   assert.equal(r.status, 404);

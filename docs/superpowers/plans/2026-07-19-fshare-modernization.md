@@ -84,6 +84,7 @@ README.md                 free-hosting setup (Neon, B2, Brevo, Render)
 ### Task 0: Remove legacy code, scaffold ESM project
 
 **Files:**
+
 - Delete: `index.js`, `script.js`, `config/db.js`, `models/file.js`, `views/`, `public/css/`, `.deepsource.toml`
 - Modify: `package.json`, `.env.example`, `.gitignore`
 
@@ -190,10 +191,12 @@ git commit -m "chore: reset to ESM scaffold, drop mongo/dotenv/uuid"
 ### Task 1: Slug generator
 
 **Files:**
+
 - Create: `server/lib/slug.js`
 - Test: `server/test/slug.test.js`
 
 **Interfaces:**
+
 - Produces: `generateSlug(): string` — 10 chars, `[0-9A-Za-z]`.
 
 - [ ] **Step 1: Write failing test** — `server/test/slug.test.js`
@@ -225,7 +228,8 @@ Expected: FAIL (`Cannot find module '../lib/slug.js'`).
 ```js
 import { randomBytes } from "node:crypto";
 
-const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const ALPHABET =
+  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const LENGTH = 10;
 
 // Rejection-free enough: map each random byte into 62 chars.
@@ -255,10 +259,12 @@ git commit -m "feat: base62 slug generator"
 ### Task 2: Expiry + send validation
 
 **Files:**
+
 - Create: `server/lib/validate.js`
 - Test: `server/test/validate.test.js`
 
 **Interfaces:**
+
 - Consumes env: `DEFAULT_EXPIRY_HOURS`, `MAX_EXPIRY_DAYS`.
 - Produces:
   - `resolveExpiresAt(raw?: string, now?: Date): Date` — parses ISO `raw`; if absent → `now + DEFAULT_EXPIRY_HOURS`. Throws `Error` (message usable as 400 text) if not a valid date, in the past, or beyond `now + MAX_EXPIRY_DAYS`.
@@ -288,7 +294,10 @@ test("rejects past dates", () => {
 });
 
 test("rejects beyond 30 days", () => {
-  assert.throws(() => resolveExpiresAt("2026-09-01T00:00:00Z", NOW), /30 days/i);
+  assert.throws(
+    () => resolveExpiresAt("2026-09-01T00:00:00Z", NOW),
+    /30 days/i,
+  );
 });
 
 test("rejects garbage", () => {
@@ -296,7 +305,11 @@ test("rejects garbage", () => {
 });
 
 test("sendSchema rejects bad email", () => {
-  const r = sendSchema.safeParse({ slug: "abc", emailTo: "x", emailFrom: "a@b.com" });
+  const r = sendSchema.safeParse({
+    slug: "abc",
+    emailTo: "x",
+    emailFrom: "a@b.com",
+  });
   assert.equal(r.success, false);
 });
 ```
@@ -319,7 +332,8 @@ export function resolveExpiresAt(raw, now = new Date()) {
   if (Number.isNaN(d.getTime())) throw new Error("Invalid expiry date");
   if (d <= now) throw new Error("Expiry must be in the future");
   const max = new Date(now.getTime() + MAX_EXPIRY_DAYS * 86_400_000);
-  if (d > max) throw new Error(`Expiry cannot be more than ${MAX_EXPIRY_DAYS} days away`);
+  if (d > max)
+    throw new Error(`Expiry cannot be more than ${MAX_EXPIRY_DAYS} days away`);
   return d;
 }
 
@@ -344,10 +358,12 @@ git commit -m "feat: expiry + send validation"
 ### Task 3: Knex config, instance, migration
 
 **Files:**
+
 - Create: `server/db/knexfile.js`, `server/db/knex.js`, `server/db/migrations/20260719000000_create_files.js`
 - Test: `server/test/migration.test.js`
 
 **Interfaces:**
+
 - Produces: default export `db` (knex instance) from `server/db/knex.js`.
 - `files` columns: `id, slug, filename, mime_type, size, b2_key, sender, receiver, created_at, expires_at`.
 
@@ -358,7 +374,9 @@ const config = {
   client: "pg",
   connection: {
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL?.includes("localhost") ? false : { rejectUnauthorized: false },
+    ssl: process.env.DATABASE_URL?.includes("localhost")
+      ? false
+      : { rejectUnauthorized: false },
   },
   pool: { min: 0, max: 10 },
   migrations: { directory: "./server/db/migrations" },
@@ -390,7 +408,9 @@ export async function up(knex) {
     t.text("b2_key").notNullable();
     t.text("sender").nullable();
     t.text("receiver").nullable();
-    t.timestamp("created_at", { useTz: true }).notNullable().defaultTo(knex.fn.now());
+    t.timestamp("created_at", { useTz: true })
+      .notNullable()
+      .defaultTo(knex.fn.now());
     t.timestamp("expires_at", { useTz: true }).notNullable();
     t.index("expires_at");
   });
@@ -415,12 +435,24 @@ import db from "../db/knex.js";
 
 test("files table has expected columns", async () => {
   const info = await db("files").columnInfo();
-  for (const col of ["slug","filename","mime_type","size","b2_key","sender","receiver","created_at","expires_at"]) {
+  for (const col of [
+    "slug",
+    "filename",
+    "mime_type",
+    "size",
+    "b2_key",
+    "sender",
+    "receiver",
+    "created_at",
+    "expires_at",
+  ]) {
     assert.ok(info[col], `missing column ${col}`);
   }
 });
 
-after(async () => { await db.destroy(); });
+after(async () => {
+  await db.destroy();
+});
 ```
 
 - [ ] **Step 6: Run, expect pass.** `node --env-file=.env.test --test server/test/migration.test.js`
@@ -437,10 +469,12 @@ git commit -m "feat: knex config, instance, files migration"
 ### Task 4: File model (queries)
 
 **Files:**
+
 - Create: `server/models/file.js`, `server/test/helpers.js`
 - Test: `server/test/file.model.test.js`
 
 **Interfaces:**
+
 - Produces (all async):
   - `createFile({ slug, filename, mimeType, size, b2Key, expiresAt }) -> row`
   - `getFileBySlug(slug) -> row | undefined`
@@ -467,9 +501,21 @@ export { db };
 import { test, before, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { resetDb, db } from "./helpers.js";
-import { createFile, getFileBySlug, markSent, getExpired, deleteBySlug } from "../models/file.js";
+import {
+  createFile,
+  getFileBySlug,
+  markSent,
+  getExpired,
+  deleteBySlug,
+} from "../models/file.js";
 
-const base = { slug: "abc123", filename: "a.txt", mimeType: "text/plain", size: 10, b2Key: "abc123" };
+const base = {
+  slug: "abc123",
+  filename: "a.txt",
+  mimeType: "text/plain",
+  size: 10,
+  b2Key: "abc123",
+};
 
 beforeEach(resetDb);
 
@@ -488,13 +534,28 @@ test("markSent sets once, blocks second", async () => {
 });
 
 test("getExpired returns only past rows", async () => {
-  await createFile({ ...base, slug: "old", b2Key: "old", expiresAt: new Date(Date.now() - 1000) });
-  await createFile({ ...base, slug: "new", b2Key: "new", expiresAt: new Date(Date.now() + 3600_000) });
+  await createFile({
+    ...base,
+    slug: "old",
+    b2Key: "old",
+    expiresAt: new Date(Date.now() - 1000),
+  });
+  await createFile({
+    ...base,
+    slug: "new",
+    b2Key: "new",
+    expiresAt: new Date(Date.now() + 3600_000),
+  });
   const expired = await getExpired();
-  assert.deepEqual(expired.map((r) => r.slug), ["old"]);
+  assert.deepEqual(
+    expired.map((r) => r.slug),
+    ["old"],
+  );
 });
 
-after(async () => { await db.destroy(); });
+after(async () => {
+  await db.destroy();
+});
 ```
 
 - [ ] **Step 3: Run, expect fail.**
@@ -504,9 +565,23 @@ after(async () => { await db.destroy(); });
 ```js
 import db from "../db/knex.js";
 
-export async function createFile({ slug, filename, mimeType, size, b2Key, expiresAt }) {
+export async function createFile({
+  slug,
+  filename,
+  mimeType,
+  size,
+  b2Key,
+  expiresAt,
+}) {
   const [row] = await db("files")
-    .insert({ slug, filename, mime_type: mimeType, size, b2_key: b2Key, expires_at: expiresAt })
+    .insert({
+      slug,
+      filename,
+      mime_type: mimeType,
+      size,
+      b2_key: b2Key,
+      expires_at: expiresAt,
+    })
     .returning("*");
   return row;
 }
@@ -547,10 +622,12 @@ git commit -m "feat: file model queries"
 ### Task 5: B2 storage service
 
 **Files:**
+
 - Create: `server/services/b2.js`
 - Test: `server/test/b2.test.js`
 
 **Interfaces:**
+
 - Produces (async):
   - `putObject(key, buffer, contentType) -> void`
   - `presignedDownloadUrl(key, filename, contentType) -> string` (URL contains `response-content-disposition` forcing `attachment; filename`)
@@ -562,8 +639,16 @@ git commit -m "feat: file model queries"
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mockClient } from "aws-sdk-client-mock";
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { putObject, deleteObject, presignedDownloadUrl } from "../services/b2.js";
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
+import {
+  putObject,
+  deleteObject,
+  presignedDownloadUrl,
+} from "../services/b2.js";
 
 const s3mock = mockClient(S3Client);
 
@@ -577,7 +662,11 @@ test("putObject sends PutObjectCommand with body + content-type", async () => {
 });
 
 test("presigned url forces attachment download with filename", async () => {
-  const url = await presignedDownloadUrl("k1", "my report.pdf", "application/pdf");
+  const url = await presignedDownloadUrl(
+    "k1",
+    "my report.pdf",
+    "application/pdf",
+  );
   assert.match(url, /response-content-disposition=/);
   assert.match(decodeURIComponent(url), /attachment; filename="my report.pdf"/);
 });
@@ -615,7 +704,14 @@ const client = new S3Client({
 const Bucket = process.env.B2_BUCKET;
 
 export async function putObject(key, buffer, contentType) {
-  await client.send(new PutObjectCommand({ Bucket, Key: key, Body: buffer, ContentType: contentType }));
+  await client.send(
+    new PutObjectCommand({
+      Bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    }),
+  );
 }
 
 export function presignedDownloadUrl(key, filename, contentType) {
@@ -647,10 +743,12 @@ git commit -m "feat: B2 storage service"
 ### Task 6: Email template + service
 
 **Files:**
+
 - Create: `server/services/emailTemplate.js`, `server/services/email.js`
 - Test: `server/test/email.test.js`
 
 **Interfaces:**
+
 - `shareEmailHtml({ replyTo, downloadLink, size, expiresAt }) -> string`
 - `sendShareEmail({ to, replyTo, downloadLink, filename, size, expiresAt }) -> info` — uses SMTP when `SMTP_HOST` set, else `jsonTransport` (logs, no send). `from` is `MAIL_FROM`.
 
@@ -663,17 +761,29 @@ import { shareEmailHtml } from "../services/emailTemplate.js";
 import { sendShareEmail } from "../services/email.js";
 
 test("template embeds the download link", () => {
-  const html = shareEmailHtml({ replyTo: "a@b.com", downloadLink: "http://x/files/abc", size: "10 KB", expiresAt: new Date() });
+  const html = shareEmailHtml({
+    replyTo: "a@b.com",
+    downloadLink: "http://x/files/abc",
+    size: "10 KB",
+    expiresAt: new Date(),
+  });
   assert.match(html, /http:\/\/x\/files\/abc/);
 });
 
 test("sendShareEmail uses MAIL_FROM and jsonTransport when no SMTP_HOST", async () => {
   const info = await sendShareEmail({
-    to: "c@d.com", replyTo: "a@b.com", downloadLink: "http://x/files/abc",
-    filename: "a.txt", size: "10 KB", expiresAt: new Date(),
+    to: "c@d.com",
+    replyTo: "a@b.com",
+    downloadLink: "http://x/files/abc",
+    filename: "a.txt",
+    size: "10 KB",
+    expiresAt: new Date(),
   });
   const msg = JSON.parse(info.message);
-  assert.equal(msg.from.address ?? msg.from, process.env.MAIL_FROM?.match(/<(.+)>/)?.[1] ?? process.env.MAIL_FROM);
+  assert.equal(
+    msg.from.address ?? msg.from,
+    process.env.MAIL_FROM?.match(/<(.+)>/)?.[1] ?? process.env.MAIL_FROM,
+  );
   assert.equal(msg.replyTo?.[0]?.address ?? msg.replyTo, "a@b.com");
 });
 ```
@@ -723,7 +833,14 @@ function makeTransport() {
   });
 }
 
-export async function sendShareEmail({ to, replyTo, downloadLink, filename, size, expiresAt }) {
+export async function sendShareEmail({
+  to,
+  replyTo,
+  downloadLink,
+  filename,
+  size,
+  expiresAt,
+}) {
   const transport = makeTransport();
   return transport.sendMail({
     from: process.env.MAIL_FROM,
@@ -750,10 +867,12 @@ git commit -m "feat: share email template + sender"
 ### Task 7: Cleanup service
 
 **Files:**
+
 - Create: `server/services/cleanup.js`
 - Test: `server/test/cleanup.test.js`
 
 **Interfaces:**
+
 - Consumes: `getExpired`, `deleteBySlug` (model), `deleteObject` (b2).
 - Produces: `runCleanup() -> { deleted: number }`; `startCleanup(intervalMs = 3600_000) -> intervalId`.
 - Contract: for each expired row, delete B2 object **then** delete row. A failed B2 delete is logged and the row is left for the next pass (no silent row deletion without object cleanup).
@@ -770,11 +889,29 @@ import { createFile, getFileBySlug } from "../models/file.js";
 import { runCleanup } from "../services/cleanup.js";
 
 const s3mock = mockClient(S3Client);
-beforeEach(async () => { await resetDb(); s3mock.reset(); s3mock.on(DeleteObjectCommand).resolves({}); });
+beforeEach(async () => {
+  await resetDb();
+  s3mock.reset();
+  s3mock.on(DeleteObjectCommand).resolves({});
+});
 
 test("removes expired rows + their objects, keeps fresh", async () => {
-  await createFile({ slug: "old", filename: "a", mimeType: "text/plain", size: 1, b2Key: "old", expiresAt: new Date(Date.now() - 1000) });
-  await createFile({ slug: "new", filename: "b", mimeType: "text/plain", size: 1, b2Key: "new", expiresAt: new Date(Date.now() + 3600_000) });
+  await createFile({
+    slug: "old",
+    filename: "a",
+    mimeType: "text/plain",
+    size: 1,
+    b2Key: "old",
+    expiresAt: new Date(Date.now() - 1000),
+  });
+  await createFile({
+    slug: "new",
+    filename: "b",
+    mimeType: "text/plain",
+    size: 1,
+    b2Key: "new",
+    expiresAt: new Date(Date.now() + 3600_000),
+  });
   const res = await runCleanup();
   assert.equal(res.deleted, 1);
   assert.equal(await getFileBySlug("old"), undefined);
@@ -782,7 +919,9 @@ test("removes expired rows + their objects, keeps fresh", async () => {
   assert.equal(s3mock.commandCalls(DeleteObjectCommand).length, 1);
 });
 
-after(async () => { await db.destroy(); });
+after(async () => {
+  await db.destroy();
+});
 ```
 
 - [ ] **Step 2: Run, expect fail.**
@@ -811,7 +950,10 @@ export async function runCleanup() {
 
 export function startCleanup(intervalMs = 3600_000) {
   runCleanup().catch((e) => console.error("cleanup error:", e.message));
-  const id = setInterval(() => runCleanup().catch((e) => console.error("cleanup error:", e.message)), intervalMs);
+  const id = setInterval(
+    () => runCleanup().catch((e) => console.error("cleanup error:", e.message)),
+    intervalMs,
+  );
   id.unref?.();
   return id;
 }
@@ -833,10 +975,12 @@ git commit -m "feat: expiry cleanup (row + object, no orphans)"
 ### Task 8: Files router (upload, send, metadata)
 
 **Files:**
+
 - Create: `server/routes/files.js`
 - Test: `server/test/files.route.test.js`
 
 **Interfaces:**
+
 - Consumes: `generateSlug`, `resolveExpiresAt`, `sendSchema`, model fns, `putObject`, `deleteObject`, `sendShareEmail`.
 - Produces: default export `router` mounted at `/api/files`.
   - `POST /` — multipart `upfile` + text `expires` → `{ file, slug, expiresAt }` (201). Errors: 400 no file / bad expiry, 413 too big.
@@ -857,7 +1001,11 @@ import { makeApp } from "../index.js";
 const s3mock = mockClient(S3Client);
 const app = makeApp();
 
-beforeEach(async () => { await resetDb(); s3mock.reset(); s3mock.on(PutObjectCommand).resolves({}); });
+beforeEach(async () => {
+  await resetDb();
+  s3mock.reset();
+  s3mock.on(PutObjectCommand).resolves({});
+});
 
 test("upload → metadata roundtrip", async () => {
   const up = await request(app)
@@ -883,14 +1031,23 @@ test("metadata for unknown slug → 404", async () => {
 });
 
 test("send validates + blocks re-send", async () => {
-  const up = await request(app).post("/api/files").attach("upfile", Buffer.from("x"), "a.txt").field("expires", "");
-  const ok = await request(app).post("/api/files/send").send({ slug: up.body.slug, emailTo: "c@d.com", emailFrom: "a@b.com" });
+  const up = await request(app)
+    .post("/api/files")
+    .attach("upfile", Buffer.from("x"), "a.txt")
+    .field("expires", "");
+  const ok = await request(app)
+    .post("/api/files/send")
+    .send({ slug: up.body.slug, emailTo: "c@d.com", emailFrom: "a@b.com" });
   assert.equal(ok.status, 200);
-  const again = await request(app).post("/api/files/send").send({ slug: up.body.slug, emailTo: "c@d.com", emailFrom: "a@b.com" });
+  const again = await request(app)
+    .post("/api/files/send")
+    .send({ slug: up.body.slug, emailTo: "c@d.com", emailFrom: "a@b.com" });
   assert.equal(again.status, 409);
 });
 
-after(async () => { await db.destroy(); });
+after(async () => {
+  await db.destroy();
+});
 ```
 
 - [ ] **Step 2: Run, expect fail** (router + `makeApp` not yet present).
@@ -903,11 +1060,18 @@ import multer from "multer";
 import { generateSlug } from "../lib/slug.js";
 import { resolveExpiresAt, sendSchema } from "../lib/validate.js";
 import { createFile, getFileBySlug, markSent } from "../models/file.js";
-import { putObject, deleteObject, presignedDownloadUrl } from "../services/b2.js";
+import {
+  putObject,
+  deleteObject,
+  presignedDownloadUrl,
+} from "../services/b2.js";
 import { sendShareEmail } from "../services/email.js";
 
 const MAX_BYTES = Number(process.env.MAX_FILE_MB ?? 100) * 1024 * 1024;
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_BYTES } }).single("upfile");
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_BYTES },
+}).single("upfile");
 const base = () => process.env.APP_BASE_URL ?? "";
 
 const router = Router();
@@ -931,32 +1095,45 @@ router.post("/", (req, res) => {
     try {
       await putObject(slug, req.file.buffer, req.file.mimetype);
       await createFile({
-        slug, filename: req.file.originalname, mimeType: req.file.mimetype,
-        size: req.file.size, b2Key: slug, expiresAt,
+        slug,
+        filename: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+        b2Key: slug,
+        expiresAt,
       });
     } catch (e) {
       await deleteObject(slug).catch(() => {}); // compensate: no orphan object
       return res.status(500).json({ error: "Upload failed" });
     }
 
-    return res.status(201).json({ file: `${base()}/files/${slug}`, slug, expiresAt });
+    return res
+      .status(201)
+      .json({ file: `${base()}/files/${slug}`, slug, expiresAt });
   });
 });
 
 router.post("/send", async (req, res) => {
   const parsed = sendSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(422).json({ error: "All fields are required and must be valid emails" });
+  if (!parsed.success)
+    return res
+      .status(422)
+      .json({ error: "All fields are required and must be valid emails" });
   const { slug, emailTo, emailFrom } = parsed.data;
 
   const file = await getFileBySlug(slug);
   if (!file) return res.status(404).json({ error: "Link not found" });
-  if (new Date(file.expires_at) < new Date()) return res.status(410).json({ error: "Link expired" });
-  if (file.sender) return res.status(409).json({ error: "Email already sent for this file" });
+  if (new Date(file.expires_at) < new Date())
+    return res.status(410).json({ error: "Link expired" });
+  if (file.sender)
+    return res.status(409).json({ error: "Email already sent for this file" });
 
   await sendShareEmail({
-    to: emailTo, replyTo: emailFrom,
+    to: emailTo,
+    replyTo: emailFrom,
     downloadLink: `${base()}/files/${slug}`,
-    filename: file.filename, size: `${Math.round(file.size / 1024)} KB`,
+    filename: file.filename,
+    size: `${Math.round(file.size / 1024)} KB`,
     expiresAt: new Date(file.expires_at),
   });
   await markSent(slug, emailFrom, emailTo);
@@ -966,10 +1143,14 @@ router.post("/send", async (req, res) => {
 router.get("/:slug", async (req, res) => {
   const file = await getFileBySlug(req.params.slug);
   if (!file) return res.status(404).json({ error: "Link not found" });
-  if (new Date(file.expires_at) < new Date()) return res.status(410).json({ error: "Link expired" });
+  if (new Date(file.expires_at) < new Date())
+    return res.status(410).json({ error: "Link expired" });
   return res.json({
-    slug: file.slug, filename: file.filename, size: Number(file.size),
-    expiresAt: file.expires_at, downloadLink: `${base()}/api/files/download/${file.slug}`,
+    slug: file.slug,
+    filename: file.filename,
+    size: Number(file.size),
+    expiresAt: file.expires_at,
+    downloadLink: `${base()}/api/files/download/${file.slug}`,
   });
 });
 
@@ -990,9 +1171,11 @@ git commit -m "feat: files router (upload, send, metadata)"
 ### Task 9: Download router
 
 **Files:**
+
 - Create: `server/routes/download.js`
 
 **Interfaces:**
+
 - Produces: default export `router` mounted at `/api/files/download`.
   - `GET /:slug` → 302 redirect to presigned URL; 404 missing; 410 expired.
 
@@ -1008,8 +1191,13 @@ const router = Router();
 router.get("/:slug", async (req, res) => {
   const file = await getFileBySlug(req.params.slug);
   if (!file) return res.status(404).json({ error: "Link not found" });
-  if (new Date(file.expires_at) < new Date()) return res.status(410).json({ error: "Link expired" });
-  const url = await presignedDownloadUrl(file.b2_key, file.filename, file.mime_type);
+  if (new Date(file.expires_at) < new Date())
+    return res.status(410).json({ error: "Link expired" });
+  const url = await presignedDownloadUrl(
+    file.b2_key,
+    file.filename,
+    file.mime_type,
+  );
   return res.redirect(302, url);
 });
 
@@ -1028,10 +1216,12 @@ git commit -m "feat: download router (presigned redirect)"
 ### Task 10: App assembly (`makeApp` + server bootstrap)
 
 **Files:**
+
 - Create: `server/index.js`
 - Test: `server/test/app.test.js` (+ runs Task 8 route tests)
 
 **Interfaces:**
+
 - Produces: named export `makeApp() -> express app`; default side-effect bootstrap (listen + startCleanup) when run directly.
 - Route order: rate-limited `/api/files` + `/api/files/download`, then `express.static(client/dist)`, then SPA fallback for non-`/api` GET, then a JSON 404 for anything left (i.e. unknown `/api/*`).
 
@@ -1053,7 +1243,12 @@ export function makeApp() {
   const app = express();
   app.use(express.json());
 
-  const limiter = rateLimit({ windowMs: 15 * 60_000, max: 100, standardHeaders: true, legacyHeaders: false });
+  const limiter = rateLimit({
+    windowMs: 15 * 60_000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
   // API first
   app.use("/api/files/download", downloadRouter);
@@ -1099,7 +1294,9 @@ test("unknown /api route → JSON 404", async () => {
   assert.equal(r.headers["content-type"]?.includes("application/json"), true);
 });
 
-after(async () => { await db.destroy(); });
+after(async () => {
+  await db.destroy();
+});
 ```
 
 - [ ] **Step 3: Run the full backend suite**
@@ -1121,9 +1318,11 @@ git commit -m "feat: express app assembly + route ordering"
 ### Task 11: Client scaffold (Vite + React + Tailwind + router)
 
 **Files:**
+
 - Create: `client/package.json`, `client/vite.config.js`, `client/index.html`, `client/src/main.jsx`, `client/src/index.css`
 
 **Interfaces:**
+
 - Dev server proxies `/api` and `/files` to `http://localhost:5000`.
 - Build outputs `client/dist`.
 
@@ -1214,7 +1413,7 @@ createRoot(document.getElementById("root")).render(
         <Route path="/files/:slug" element={<Download />} />
       </Routes>
     </BrowserRouter>
-  </React.StrictMode>
+  </React.StrictMode>,
 );
 ```
 
@@ -1232,10 +1431,12 @@ git commit -m "feat: client scaffold (vite + react + tailwind + router)"
 ### Task 12: Client helpers (format + countdown) — tested
 
 **Files:**
+
 - Create: `client/src/lib/format.js`
 - Test: `client/src/test/format.test.js`
 
 **Interfaces:**
+
 - `formatSize(bytes: number) -> string` (e.g. `1536 -> "1.5 KB"`, `0 -> "0 B"`).
 - `formatCountdown(expiresAt: string|Date, now?: Date) -> string` (e.g. `"expires in 23h 59m"`, past → `"expired"`).
 
@@ -1254,9 +1455,13 @@ describe("formatSize", () => {
 describe("formatCountdown", () => {
   const now = new Date("2026-07-19T00:00:00Z");
   it("hours + minutes", () =>
-    expect(formatCountdown("2026-07-19T23:30:00Z", now)).toBe("expires in 23h 30m"));
+    expect(formatCountdown("2026-07-19T23:30:00Z", now)).toBe(
+      "expires in 23h 30m",
+    ));
   it("days", () =>
-    expect(formatCountdown("2026-07-22T00:00:00Z", now)).toBe("expires in 3d 0h"));
+    expect(formatCountdown("2026-07-22T00:00:00Z", now)).toBe(
+      "expires in 3d 0h",
+    ));
   it("past", () =>
     expect(formatCountdown("2026-07-18T00:00:00Z", now)).toBe("expired"));
 });
@@ -1270,7 +1475,8 @@ describe("formatCountdown", () => {
 export function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
@@ -1300,9 +1506,11 @@ git commit -m "feat: client format + countdown helpers"
 ### Task 13: API client
 
 **Files:**
+
 - Create: `client/src/lib/api.js`
 
 **Interfaces:**
+
 - `uploadFile(file: File, expiresISO: string|"", onProgress: (pct:number)=>void) -> Promise<{ file, slug, expiresAt }>` (XHR for progress; rejects with `{ status, error }`).
 - `getFileMeta(slug) -> Promise<{ slug, filename, size, expiresAt, downloadLink }>` (rejects with `{ status }` on 404/410).
 - `sendEmail({ slug, emailTo, emailFrom }) -> Promise<void>` (rejects with `{ status, error }`).
@@ -1318,11 +1526,14 @@ export function uploadFile(file, expiresISO, onProgress) {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/files");
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+      if (e.lengthComputable && onProgress)
+        onProgress(Math.round((e.loaded / e.total) * 100));
     };
     xhr.onload = () => {
       let body = {};
-      try { body = JSON.parse(xhr.responseText); } catch {}
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {}
       if (xhr.status >= 200 && xhr.status < 300) resolve(body);
       else reject({ status: xhr.status, error: body.error || "Upload failed" });
     };
@@ -1362,9 +1573,11 @@ git commit -m "feat: client api (xhr upload, meta, send)"
 ### Task 14: UI components
 
 **Files:**
+
 - Create: `client/src/components/Dropzone.jsx`, `ExpirySelect.jsx`, `ProgressBar.jsx`, `CopyLink.jsx`, `EmailShare.jsx`
 
 **Interfaces:**
+
 - `<Dropzone onFile={(file)=>void} disabled />` — click-to-select + drag-drop; shows drag-over state.
 - `<ExpirySelect value={isoString} onChange={(iso)=>void} />` — presets (1h/1d/7d/30d) + custom datetime capped at now+30d; emits ISO string (empty = default).
 - `<ProgressBar pct={number} />`.
@@ -1387,14 +1600,26 @@ export default function Dropzone({ onFile, disabled }) {
   return (
     <div
       onClick={() => !disabled && inputRef.current?.click()}
-      onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
       onDragLeave={() => setOver(false)}
-      onDrop={(e) => { e.preventDefault(); setOver(false); if (!disabled) pick(e.dataTransfer.files); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        if (!disabled) pick(e.dataTransfer.files);
+      }}
       className={`cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition
         ${over ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400"}
         ${disabled ? "pointer-events-none opacity-60" : ""}`}
     >
-      <input ref={inputRef} type="file" className="hidden" onChange={(e) => pick(e.target.files)} />
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        onChange={(e) => pick(e.target.files)}
+      />
       <p className="text-lg font-medium text-gray-700">Drop a file here</p>
       <p className="text-sm text-gray-500">or click to browse</p>
     </div>
@@ -1430,17 +1655,23 @@ export default function ExpirySelect({ value, onChange }) {
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">Link expires in</label>
+      <label className="block text-sm font-medium text-gray-700">
+        Link expires in
+      </label>
       <div className="flex flex-wrap gap-2">
         {PRESETS.map((p) => (
           <button
             key={p.hours}
             type="button"
-            onClick={() => { setMode("preset"); onChange(isoFromNow(p.hours)); }}
+            onClick={() => {
+              setMode("preset");
+              onChange(isoFromNow(p.hours));
+            }}
             className={`rounded-full px-3 py-1 text-sm ${
               mode === "preset" && value === isoFromNow(p.hours)
                 ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
           >
             {p.label}
           </button>
@@ -1458,7 +1689,11 @@ export default function ExpirySelect({ value, onChange }) {
           type="datetime-local"
           max={toLocalInput(maxDate)}
           min={toLocalInput(new Date())}
-          onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : "")}
+          onChange={(e) =>
+            onChange(
+              e.target.value ? new Date(e.target.value).toISOString() : "",
+            )
+          }
           className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
         />
       )}
@@ -1473,7 +1708,10 @@ export default function ExpirySelect({ value, onChange }) {
 export default function ProgressBar({ pct }) {
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-      <div className="h-full bg-blue-600 transition-all" style={{ width: `${pct}%` }} />
+      <div
+        className="h-full bg-blue-600 transition-all"
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }
@@ -1491,16 +1729,26 @@ export default function CopyLink({ url }) {
       await navigator.clipboard.writeText(url);
     } catch {
       const ta = document.createElement("textarea");
-      ta.value = url; document.body.appendChild(ta); ta.select();
-      document.execCommand("copy"); ta.remove();
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
   return (
     <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 p-2">
-      <input readOnly value={url} className="flex-1 bg-transparent px-2 text-sm text-gray-700 outline-none" />
-      <button onClick={copy} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
+      <input
+        readOnly
+        value={url}
+        className="flex-1 bg-transparent px-2 text-sm text-gray-700 outline-none"
+      />
+      <button
+        onClick={copy}
+        className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+      >
         {copied ? "Copied!" : "Copy"}
       </button>
     </div>
@@ -1522,29 +1770,44 @@ export default function EmailShare({ slug }) {
 
   async function submit(e) {
     e.preventDefault();
-    setState("sending"); setError("");
+    setState("sending");
+    setError("");
     try {
       await sendEmail({ slug, emailFrom: from, emailTo: to });
       setState("sent");
     } catch (err) {
-      setError(err.error || "Failed to send"); setState("error");
+      setError(err.error || "Failed to send");
+      setState("error");
     }
   }
 
-  if (state === "sent") return <p className="text-sm text-green-600">Email sent ✓</p>;
+  if (state === "sent")
+    return <p className="text-sm text-green-600">Email sent ✓</p>;
 
   return (
     <form onSubmit={submit} className="space-y-2">
       <p className="text-sm font-medium text-gray-700">Or email the link</p>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <input type="email" required placeholder="Your email" value={from}
+        <input
+          type="email"
+          required
+          placeholder="Your email"
+          value={from}
           onChange={(e) => setFrom(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-        <input type="email" required placeholder="Recipient email" value={to}
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        />
+        <input
+          type="email"
+          required
+          placeholder="Recipient email"
+          value={to}
           onChange={(e) => setTo(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-        <button disabled={state === "sending"}
-          className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 disabled:opacity-60">
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        />
+        <button
+          disabled={state === "sending"}
+          className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 disabled:opacity-60"
+        >
           {state === "sending" ? "Sending…" : "Send"}
         </button>
       </div>
@@ -1566,9 +1829,11 @@ git commit -m "feat: UI components (dropzone, expiry, progress, copy, email)"
 ### Task 15: Upload page (state machine)
 
 **Files:**
+
 - Create: `client/src/pages/Upload.jsx`
 
 **Interfaces:**
+
 - States: `idle → uploading(pct) → success(link) → error`. Client-side size pre-check against `MAX_FILE_MB` (hardcode 100 to match server default; document that it mirrors the env cap).
 
 - [ ] **Step 1: Implement** — `client/src/pages/Upload.jsx`
@@ -1594,25 +1859,37 @@ export default function Upload() {
 
   async function onFile(file) {
     if (file.size > MAX_MB * 1024 * 1024) {
-      setError(`File too large (max ${MAX_MB} MB)`); setState("error"); return;
+      setError(`File too large (max ${MAX_MB} MB)`);
+      setState("error");
+      return;
     }
-    setState("uploading"); setPct(0); setError("");
+    setState("uploading");
+    setPct(0);
+    setError("");
     try {
       const res = await uploadFile(file, expires, setPct);
       setResult({ ...res, name: file.name, size: file.size });
       setState("success");
     } catch (err) {
-      setError(err.error || "Upload failed"); setState("error");
+      setError(err.error || "Upload failed");
+      setState("error");
     }
   }
 
-  function reset() { setState("idle"); setResult(null); setError(""); setPct(0); }
+  function reset() {
+    setState("idle");
+    setResult(null);
+    setError("");
+    setPct(0);
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 p-6">
       <header className="text-center">
         <h1 className="text-3xl font-bold text-gray-900">FShare</h1>
-        <p className="text-gray-500">Share any file with a clean, expiring link.</p>
+        <p className="text-gray-500">
+          Share any file with a clean, expiring link.
+        </p>
       </header>
 
       {state === "idle" && (
@@ -1637,14 +1914,24 @@ export default function Upload() {
           </div>
           <CopyLink url={result.file} />
           <EmailShare slug={result.slug} />
-          <button onClick={reset} className="text-sm text-blue-600 hover:underline">Share another file</button>
+          <button
+            onClick={reset}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Share another file
+          </button>
         </div>
       )}
 
       {state === "error" && (
         <div className="space-y-3 text-center">
           <p className="text-red-600">{error}</p>
-          <button onClick={reset} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">Try again</button>
+          <button
+            onClick={reset}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+          >
+            Try again
+          </button>
         </div>
       )}
     </main>
@@ -1664,9 +1951,11 @@ git commit -m "feat: upload page state machine"
 ### Task 16: Download page (state machine + countdown)
 
 **Files:**
+
 - Create: `client/src/pages/Download.jsx`
 
 **Interfaces:**
+
 - States: `loading → ready → expired(410) → notfound(404) → error`. Live countdown ticks each minute.
 
 - [ ] **Step 1: Implement** — `client/src/pages/Download.jsx`
@@ -1685,8 +1974,19 @@ export default function Download() {
 
   useEffect(() => {
     getFileMeta(slug)
-      .then((m) => { setMeta(m); setState("ready"); })
-      .catch((err) => setState(err.status === 410 ? "expired" : err.status === 404 ? "notfound" : "error"));
+      .then((m) => {
+        setMeta(m);
+        setState("ready");
+      })
+      .catch((err) =>
+        setState(
+          err.status === 410
+            ? "expired"
+            : err.status === 404
+              ? "notfound"
+              : "error",
+        ),
+      );
   }, [slug]);
 
   useEffect(() => {
@@ -1696,19 +1996,27 @@ export default function Download() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
-      <Link to="/" className="text-2xl font-bold text-gray-900">FShare</Link>
+      <Link to="/" className="text-2xl font-bold text-gray-900">
+        FShare
+      </Link>
 
       {state === "loading" && <p className="text-gray-500">Loading…</p>}
 
       {state === "ready" && meta && (
         <div className="w-full space-y-4 rounded-2xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900">Your file is ready</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Your file is ready
+          </h2>
           <div>
             <p className="font-medium text-gray-800">{meta.filename}</p>
-            <p className="text-sm text-gray-500">{formatSize(meta.size)} ・ {formatCountdown(meta.expiresAt)}</p>
+            <p className="text-sm text-gray-500">
+              {formatSize(meta.size)} ・ {formatCountdown(meta.expiresAt)}
+            </p>
           </div>
-          <a href={meta.downloadLink}
-            className="inline-block rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700">
+          <a
+            href={meta.downloadLink}
+            className="inline-block rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
+          >
             Download file
           </a>
         </div>
@@ -1716,12 +2024,18 @@ export default function Download() {
 
       {(state === "expired" || state === "notfound") && (
         <div className="space-y-2">
-          <p className="text-red-600">{state === "expired" ? "This link has expired." : "Link not found."}</p>
-          <Link to="/" className="text-sm text-blue-600 hover:underline">Share a file instead</Link>
+          <p className="text-red-600">
+            {state === "expired" ? "This link has expired." : "Link not found."}
+          </p>
+          <Link to="/" className="text-sm text-blue-600 hover:underline">
+            Share a file instead
+          </Link>
         </div>
       )}
 
-      {state === "error" && <p className="text-red-600">Something went wrong.</p>}
+      {state === "error" && (
+        <p className="text-red-600">Something went wrong.</p>
+      )}
     </main>
   );
 }
@@ -1770,6 +2084,7 @@ Run: `npm run build && npm start`, open `http://localhost:5000`, repeat upload/d
 ### Task 18: README + deployment docs
 
 **Files:**
+
 - Modify: `README.md`
 
 - [ ] **Step 1: Write `README.md`**
@@ -1781,10 +2096,12 @@ Share any file via a clean, expiring link. Upload → copy link (or email it) �
 file auto-deletes when its link expires (default 24h, up to 30 days).
 
 ## Stack
+
 Node 24 (ESM) · Express 5 · Knex + Postgres (Neon) · Backblaze B2 (files) ·
 nodemailer + Brevo (email) · React 19 + Vite + Tailwind.
 
 ## Local development
+
 1. `npm install && npm --prefix client install`
 2. Copy `.env.example` → `.env`, fill `DATABASE_URL`, B2 creds, (optional) Brevo creds.
    Leave `SMTP_HOST` empty to log emails to the console instead of sending.
@@ -1794,6 +2111,7 @@ nodemailer + Brevo (email) · React 19 + Vite + Tailwind.
    `npm --prefix client test`.
 
 ## Free hosting (all no credit card)
+
 - **Neon** (Postgres): create a project → copy the connection string → `DATABASE_URL`.
 - **Backblaze B2**: create a bucket → application key → fill `B2_*` (endpoint/region from the bucket page).
 - **Brevo**: verify a sender email → SMTP key → `MAIL_USER`/`MAIL_PASS`, set `MAIL_FROM`.
@@ -1804,6 +2122,7 @@ nodemailer + Brevo (email) · React 19 + Vite + Tailwind.
   - Free tier sleeps after ~15 min idle (first hit ~1 min cold start).
 
 ## How it works
+
 - Upload buffers in memory (cap `MAX_FILE_MB`), streams to B2 under a random 10-char slug,
   metadata row saved in Postgres. If the DB insert fails the B2 object is deleted (no orphans).
 - Download issues a short-lived B2 presigned URL that forces `attachment` with the original filename.

@@ -22,12 +22,19 @@ export async function putObject(key, buffer, contentType) {
 }
 
 export function presignedDownloadUrl(key, filename, contentType) {
+  // Strip quotes + CR/LF from the ASCII fallback (header-safety), and add an
+  // RFC 5987 filename* so non-ASCII/unicode names download intact rather than
+  // garbled or truncated.
+  const asciiName = filename.replace(/[\r\n"]/g, "");
+  const utf8Name = encodeURIComponent(filename);
+
   const cmd = new GetObjectCommand({
     Bucket,
     Key: key,
-    ResponseContentDisposition: `attachment; filename="${filename.replace(/"/g, "")}"`,
+    ResponseContentDisposition: `attachment; filename="${asciiName}"; filename*=UTF-8''${utf8Name}`,
     ResponseContentType: contentType,
   });
+
   return getSignedUrl(client, cmd, { expiresIn: 300 });
 }
 

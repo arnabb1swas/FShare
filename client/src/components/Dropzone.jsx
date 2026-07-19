@@ -5,7 +5,9 @@ export default function Dropzone({ onFile, disabled }) {
   const [over, setOver] = useState(false);
 
   function pick(files) {
-    if (files && files[0]) onFile(files[0]);
+    if (files && files[0]) {
+      onFile(files[0]);
+    }
   }
 
   return (
@@ -13,7 +15,13 @@ export default function Dropzone({ onFile, disabled }) {
       onClick={() => !disabled && inputRef.current?.click()}
       onDragOver={(e) => { e.preventDefault(); setOver(true); }}
       onDragLeave={() => setOver(false)}
-      onDrop={(e) => { e.preventDefault(); setOver(false); if (!disabled) pick(e.dataTransfer.files); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        if (!disabled) {
+          pick(e.dataTransfer.files);
+        }
+      }}
       className={`group cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-all duration-300
         ${over
           ? "scale-[1.02] border-indigo-400 bg-indigo-500/10 shadow-[0_0_40px_-8px_rgba(99,102,241,0.6)]"

@@ -11,7 +11,7 @@
     "build": "npm --prefix client install && npm --prefix client run build",
     "migrate": "knex migrate:latest --knexfile server/db/knexfile.js",
     "start": "npm run migrate && node --env-file=.env server/index.js",
-    "test": "node --env-file=.env.test --test 'server/test/**/*.test.js'"
+    "test": "node --env-file=.env.test --test-concurrency=1 --test 'server/test/**/*.test.js'"
   },
   "author": "Arnab Biswas",
   "license": "ISC",

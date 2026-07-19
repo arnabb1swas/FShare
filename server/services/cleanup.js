@@ -13,7 +13,9 @@ export async function runCleanup() {
       console.error(`cleanup failed for ${row.slug}:`, err.message);
     }
   }
-  if (deleted) console.log(`cleanup removed ${deleted} expired file(s)`);
+  if (deleted) {
+    console.log(`cleanup removed ${deleted} expired file(s)`);
+  }
   return { deleted };
 }
 

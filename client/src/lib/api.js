@@ -6,13 +6,21 @@ export function uploadFile(file, expiresISO, onProgress) {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/files");
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
     };
     xhr.onload = () => {
       let body = {};
-      try { body = JSON.parse(xhr.responseText); } catch {}
-      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
-      else reject({ status: xhr.status, error: body.error || "Upload failed" });
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {}
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body);
+      } else {
+        reject({ status: xhr.status, error: body.error || "Upload failed" });
+      }
     };
     xhr.onerror = () => reject({ status: 0, error: "Network error" });
     xhr.send(form);
@@ -21,7 +29,9 @@ export function uploadFile(file, expiresISO, onProgress) {
 
 export async function getFileMeta(slug) {
   const res = await fetch(`/api/files/${slug}`);
-  if (!res.ok) throw { status: res.status };
+  if (!res.ok) {
+    throw { status: res.status };
+  }
   return res.json();
 }
 

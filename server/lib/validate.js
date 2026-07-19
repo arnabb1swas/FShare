@@ -8,10 +8,18 @@ export function resolveExpiresAt(raw, now = new Date()) {
     return new Date(now.getTime() + DEFAULT_EXPIRY_HOURS * 3600_000);
   }
   const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) throw new Error("Invalid expiry date");
-  if (d <= now) throw new Error("Expiry must be in the future");
+  if (Number.isNaN(d.getTime())) {
+    throw new Error("Invalid expiry date");
+  }
+  if (d <= now) {
+    throw new Error("Expiry must be in the future");
+  }
+
   const max = new Date(now.getTime() + MAX_EXPIRY_DAYS * 86_400_000);
-  if (d > max) throw new Error(`Expiry cannot be more than ${MAX_EXPIRY_DAYS} days away`);
+  if (d > max) {
+    throw new Error(`Expiry cannot be more than ${MAX_EXPIRY_DAYS} days away`);
+  }
+
   return d;
 }
 
