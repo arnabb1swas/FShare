@@ -1,7 +1,7 @@
 # FShare Modernization — Design
 
 **Date:** 2026-07-19
-**Status:** Approved for planning
+**Status:** Implemented (spec reconciled with shipped code 2026-07-19)
 
 ## Goal
 
@@ -26,15 +26,19 @@ Modernize a 4-year-old file-sharing app so it is fast, uses current packages, an
 - **Neon Postgres** — file **metadata** only (free, no idle-pause).
 - **Backblaze B2** via `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner` — file **bytes** (10 GB free, no credit card, presigned URLs).
 - **multer 2** (memory storage) — parse upload into a buffer, stream to B2.
-- **nodemailer 7** — email share, over **Brevo SMTP** (300 emails/day free, no credit card, no domain — verify sender email only; any SMTP provider works, Brevo is the chosen free one).
+- **nodemailer 9** — email share, over **Brevo SMTP** (300 emails/day free, no credit card, no domain — verify sender email only; any SMTP provider works, Brevo is the chosen free one). *(Shipped on ^9; spec originally targeted 7.)*
 - **zod** — validate request bodies, expiry, upload constraints.
 - **express-rate-limit** — throttle upload + email endpoints.
 - In-process **`setInterval`** cleanup — delete expired rows and their B2 objects.
+- **Global error middleware** — 4-arg Express handler, registered last, converts any unhandled route rejection (e.g. a DB or email-send failure) into a JSON `500 { error: "Server error" }` instead of Express's default HTML page (which would leak a stack trace).
 
 ### Frontend
 
-- **React 19 + Vite + Tailwind CSS** — single-page app, built to static `client/dist`.
+- **React 19 + Vite + Tailwind CSS v4 + react-router-dom 7** — single-page app, built to static `client/dist`.
 - Served by the same Express server (one deploy, no CORS).
+- **Glassy gradient design system** (`client/src/index.css`): CSS-variable theme tokens, an animated `background-position` gradient backdrop with two blurred accent "blob" layers, frosted-glass surfaces (`.glass`), gradient text/buttons (`.gradient-text`, `.btn-gradient`), a shimmer progress fill, and a `.pop-in` card entrance.
+- **Automatic dark mode** via `@media (prefers-color-scheme: dark)` overriding the theme tokens.
+- **`prefers-reduced-motion`** disables all animation.
 
 ### Hosting
 
@@ -103,7 +107,7 @@ Short, clean slug — not a raw UUID. 10-char base62 from native `crypto.randomB
 ## Expiry (dynamic)
 
 - User chooses at upload. **Default 24h. Maximum 30 days from now.**
-- UI: presets (1 hour / 1 day / 7 days / 30 days) + **custom** via native `<input type="datetime-local">` with `max` set to now + 30 days.
+- UI: presets (1 hour / 1 day / 7 days / 30 days) + **custom** via native `<input type="datetime-local">` with both `min` (now) and `max` (now + 30 days) set. `ExpirySelect` tracks the active choice **by identity** (the preset's hours value, or `"custom"`), not by comparing timestamps — clicking the active chip toggles it off and falls back to the server default (empty string). This is the "fix expiry selection" correction: comparing derived timestamps made the wrong chip appear active.
 - **Server authoritative:** zod validates `now < expires_at ≤ now + 30 days`; reject otherwise. Client pre-check only for instant feedback.
 - `expires_at` is the single source of truth for cleanup, the fetch/download expiry guard, and the UI countdown.
 
@@ -161,7 +165,7 @@ Unknown `/api/*` paths return JSON 404 — the SPA fallback matches only non-`/a
 - Ready: filename, size, **live countdown to `expires_at`**, download button.
 - Expired/not-found: clean message, link back to upload.
 
-**Basics:** responsive (Tailwind), keyboard-accessible controls, labeled inputs, visible focus.
+**Basics:** responsive (Tailwind), keyboard-accessible controls, labeled inputs, visible focus. Glassy gradient surfaces throughout, automatic light/dark theme, animated backdrop (disabled under `prefers-reduced-motion`). The custom datetime input carries `[color-scheme:light] dark:[color-scheme:dark]` so the native picker matches the theme.
 
 ## Validation & Security
 
@@ -173,6 +177,7 @@ Unknown `/api/*` paths return JSON 404 — the SPA fallback matches only non-`/a
 - **Forced download** (content-disposition attachment) — uploaded HTML/JS can't execute inline in a browser tab.
 - **CORS** unneeded (same-origin); if enabled, restrict to `ALLOWED_CLIENTS`.
 - **DB errors** surfaced (no silent swallow); fail fast on startup if DB unreachable.
+- **Global JSON error handler** — unhandled route rejections return `500 { error: "Server error" }`, never an HTML stack-trace page.
 - Presigned download URLs are short-lived.
 
 ## Environment Variables
@@ -218,9 +223,9 @@ Loaded via Node native `--env-file=.env` (no `dotenv`).
 
 **Replace:** MongoDB+Mongoose → Postgres+Knex · local disk → Backblaze B2 · manual `script.js` → interval cleanup · `dotenv` → native env-file · `uuid` → native slug · EJS pages → React SPA · fixed 24h expiry → dynamic (default 24h, max 30d) · raw UUID links → short base62 slug.
 
-**Upgrade:** Express 4→5 · multer 1(CVE)→2 · nodemailer 6→7 · CommonJS→ESM · Node→24.
+**Upgrade:** Express 4→5 · multer 1(CVE)→2 · nodemailer 6→9 · CommonJS→ESM · Node→24.
 
-**Add:** zod validation · rate limiting · locked email `from` · Knex migrations · `mime_type` + `expires_at` columns · forced-download presigned URLs · orphan-compensation on upload · SPA-safe route ordering · XHR upload progress · responsive React UI (drag-drop + click, progress, expiry select, copy-link, countdown, email share) · README with free-hosting steps.
+**Add:** zod validation · rate limiting · locked email `from` · Knex migrations · `mime_type` + `expires_at` columns · forced-download presigned URLs · orphan-compensation on upload · SPA-safe route ordering · global JSON error handler · XHR upload progress · responsive React UI (drag-drop + click, progress, expiry select, copy-link, countdown, email share) · glassy gradient design system with automatic dark mode and reduced-motion support · README with free-hosting steps.
 
 **Delete:** `script.js`, `config/db.js`, `models/file.js` (mongoose), old `views/` + `public/css`, `dotenv` + `uuid` deps.
 
@@ -233,6 +238,8 @@ Loaded via Node native `--env-file=.env` (no `dotenv`).
 
 ## Testing
 
+- **Server suite:** `npm test` → `node --env-file=.env.test --test-concurrency=1 --test 'server/test/**/*.test.js'`. Scoped to `server/test/**` (excludes the client's vitest tests) and run **serially** (`--test-concurrency=1`) because the suites share one Postgres `files` table and would race under parallel truncation.
+- **Client suite:** `npm --prefix client test` (vitest) — currently `format.js` helpers.
 - Knex migration up/down runs clean.
 - Slug generator: no collisions across N generations; retry path on forced duplicate.
 - Upload → row created + B2 object exists → link resolves metadata.
