@@ -17,42 +17,48 @@ function toLocalInput(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+const CHIP = "rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200";
+const ACTIVE = "btn-gradient";
+const IDLE = "glass text-soft hover:-translate-y-0.5";
+
 export default function ExpirySelect({ value, onChange }) {
-  const [mode, setMode] = useState("preset");
+  // track selection by identity (preset hours | "custom"), not by comparing timestamps
+  const [sel, setSel] = useState(null);
   const maxDate = new Date(Date.now() + 30 * 86_400_000);
 
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">Link expires in</label>
+    <div className="space-y-2.5">
+      <label className="block text-sm font-medium text-soft">Link expires in</label>
       <div className="flex flex-wrap gap-2">
         {PRESETS.map((p) => (
           <button
             key={p.hours}
             type="button"
-            onClick={() => { setMode("preset"); onChange(isoFromNow(p.hours)); }}
-            className={`rounded-full px-3 py-1 text-sm ${
-              mode === "preset" && value === isoFromNow(p.hours)
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            onClick={() =>
+              sel === p.hours
+                ? (setSel(null), onChange("")) // toggle off → server default
+                : (setSel(p.hours), onChange(isoFromNow(p.hours)))
+            }
+            className={`${CHIP} ${sel === p.hours ? ACTIVE : IDLE}`}
           >
             {p.label}
           </button>
         ))}
         <button
           type="button"
-          onClick={() => setMode("custom")}
-          className={`rounded-full px-3 py-1 text-sm ${mode === "custom" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          onClick={() => (sel === "custom" ? setSel(null) : setSel("custom"), onChange(""))}
+          className={`${CHIP} ${sel === "custom" ? ACTIVE : IDLE}`}
         >
           Custom
         </button>
       </div>
-      {mode === "custom" && (
+      {sel === "custom" && (
         <input
           type="datetime-local"
           max={toLocalInput(maxDate)}
           min={toLocalInput(new Date())}
           onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : "")}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+          className="field rounded-lg px-3 py-1.5 text-sm [color-scheme:light] dark:[color-scheme:dark]"
         />
       )}
     </div>

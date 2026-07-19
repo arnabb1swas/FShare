@@ -18,24 +18,32 @@ export default function EmailShare({ slug }) {
     }
   }
 
-  if (state === "sent") return <p className="text-sm text-green-600">Email sent ✓</p>;
+  if (state === "sent")
+    return (
+      <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-500">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+          <path fillRule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.1 3.1 6.8-6.8a1 1 0 0 1 1.4 0Z" clipRule="evenodd" />
+        </svg>
+        Email sent
+      </p>
+    );
 
   return (
-    <form onSubmit={submit} className="space-y-2">
-      <p className="text-sm font-medium text-gray-700">Or email the link</p>
+    <form onSubmit={submit} className="space-y-2.5">
+      <p className="text-sm font-medium text-soft">Or email the link</p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input type="email" required placeholder="Your email" value={from}
           onChange={(e) => setFrom(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          className="field min-w-0 flex-1 rounded-lg px-3 py-2 text-sm" />
         <input type="email" required placeholder="Recipient email" value={to}
           onChange={(e) => setTo(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          className="field min-w-0 flex-1 rounded-lg px-3 py-2 text-sm" />
         <button disabled={state === "sending"}
-          className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 disabled:opacity-60">
+          className="btn-gradient rounded-lg px-5 py-2 text-sm font-semibold disabled:opacity-60">
           {state === "sending" ? "Sending…" : "Send"}
         </button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
     </form>
   );
 }

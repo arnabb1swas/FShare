@@ -5,3 +5,4 @@ client/dist
 .env.test
 uploads
 *.log
+.playwright-mcp/
