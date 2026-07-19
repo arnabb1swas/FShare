@@ -1,0 +1,49 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# New + → Blueprint → connect this repo. Render reads build/start + env-var
+# names from here; paste secret VALUES in the dashboard (sync:false vars).
+services:
+  - type: web
+    name: fshare
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      # --- non-secrets: values live here ---
+      - key: MAX_FILE_MB
+        value: "100"
+      - key: DEFAULT_EXPIRY_HOURS
+        value: "24"
+      - key: MAX_EXPIRY_DAYS
+        value: "30"
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: "587"
+
+      # --- set in dashboard after first deploy (your live URL) ---
+      - key: APP_BASE_URL
+        sync: false
+
+      # --- secrets: paste values in dashboard, never commit ---
+      - key: DATABASE_URL
+        sync: false
+      - key: B2_ENDPOINT
+        sync: false
+      - key: B2_REGION
+        sync: false
+      - key: B2_BUCKET
+        sync: false
+      - key: B2_KEY_ID
+        sync: false
+      - key: B2_APP_KEY
+        sync: false
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+
+    # PORT is injected by Render automatically — do not set it.
