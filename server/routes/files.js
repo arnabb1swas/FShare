@@ -53,12 +53,17 @@ router.post("/send", async (req, res) => {
   if (new Date(file.expires_at) < new Date()) return res.status(410).json({ error: "Link expired" });
   if (file.sender) return res.status(409).json({ error: "Email already sent for this file" });
 
-  await sendShareEmail({
-    to: emailTo, replyTo: emailFrom,
-    downloadLink: `${base()}/files/${slug}`,
-    filename: file.filename, size: `${Math.round(file.size / 1024)} KB`,
-    expiresAt: new Date(file.expires_at),
-  });
+  try {
+    await sendShareEmail({
+      to: emailTo, replyTo: emailFrom,
+      downloadLink: `${base()}/files/${slug}`,
+      filename: file.filename, size: `${Math.round(file.size / 1024)} KB`,
+      expiresAt: new Date(file.expires_at),
+    });
+  } catch (e) {
+    console.error(`send failed for ${slug}:`, e.message);
+    return res.status(502).json({ error: "Failed to send email" });
+  }
   await markSent(slug, emailFrom, emailTo);
   return res.json({ success: true });
 });
